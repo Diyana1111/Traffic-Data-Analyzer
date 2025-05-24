@@ -1,0 +1,103 @@
+BEGIN
+    CLASS HistogramApp
+    FUNCTION init(traffic_data, date)
+        SET self.traffic_data = traffic_data
+        SET self.date = date
+        INITIALIZE Tkinter root window
+        SET self.canvas = None
+    END FUNCTION
+    
+    FUNCTION setup_window()
+        SET window title to "Histogram"
+        CREATE Tkinter canvas with dimensions 1200x700 and white background
+        PACK the canvas
+        CALL draw_histogram()
+    END FUNCTION
+
+    FUNCTION draw_histogram()
+        INITIALIZE hourly_data as dictionary with two junctions and 24 zeros for each
+        FOR each record IN self.traffic_data DO
+            SET junction = record["JunctionName"]
+            SET hour = integer part of record["timeOfDay"] split by ":"
+            INCREMENT hourly_data[junction][hour]
+        END FOR
+        DISPLAY histogram title text on canvas
+        SET max_traffic = maximum value in hourly_data
+        SET bar_width = 15
+        SET scale_factor = 400 / max_traffic IF max_traffic > 0 ELSE 1
+        FOR hour FROM 0 TO 23 DO
+            SET hour_group_start_x = 50 + hour * 40
+            FOR EACH junction, color IN [("Elm Avenue/Rabbit Road", "light green"), ("Hanley Highway/Westway", "light coral")] DO
+                SET bar_height = hourly_data[junction][hour] * scale_factor
+                DEFINE bar coordinates (bar_left_x, bar_top_y, bar_right_x, bar_bottom_y)
+                DRAW rectangle on canvas using bar coordinates and fill with color
+
+                SET text_color = "green" IF junction = "Elm Avenue/Rabbit Road" ELSE "light coral"
+                DISPLAY count above the bar using text_color
+            END FOR
+        END FOR
+        DRAW x-axis line on canvas
+        FOR hour FROM 0 TO 23 DO
+            DISPLAY hour labels underneath the histogram
+        END FOR
+        DISPLAY label "Hours 00:00 to 24:00"
+        CALL add_legend()
+    END FUNCTION
+
+    FUNCTION add_legend()
+        DRAW legend rectangles and text for each junction on canvas
+    END FUNCTION
+
+    FUNCTION run()
+        CALL setup_window()
+        RUN Tkinter main loop
+    END FUNCTION
+    END CLASS
+
+    CLASS MultiCSVProcessor
+    FUNCTION init()
+        SET self.current_data = None
+    END FUNCTION
+    
+    FUNCTION load_csv_file(file_path)
+        TRY
+            OPEN file_path as CSV
+            READ data into self.current_data
+            RETURN TRUE
+        CATCH FileNotFoundError
+            PRINT "Error: File not found."
+            RETURN FALSE
+    END FUNCTION
+
+    FUNCTION clear_previous_data()
+        SET self.current_data = None
+    END FUNCTION
+
+    FUNCTION handle_user_interaction()
+        WHILE TRUE DO
+            CALL validate_date_input() RETURN day, month, year
+            SET selected_date = formatted date string as "DDMMYYYY"
+            SET file_name = "traffic_data{selected_date}.csv"
+            IF NOT load_csv_file(file_name) THEN
+                PRINT "File not found. Try again."
+                CONTINUE loop
+            END IF
+            CALL process_csv_data(file_name)
+            INITIALIZE HistogramApp with self.current_data and formatted date
+            CALL app.run()
+            IF validate_continue_input() equals "N" THEN
+                BREAK loop
+            END IF
+        END WHILE
+    END FUNCTION
+    
+    FUNCTION process_files()
+        CALL handle_user_interaction()
+    END FUNCTION
+    END CLASS
+
+    FUNCTION MAIN()
+        INITIALIZE MultiCSVProcessor
+        CALL processor.process_files()
+    END FUNCTION
+END
